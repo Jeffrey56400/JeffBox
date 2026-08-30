@@ -1,0 +1,269 @@
+<UserControl x:Class="TodoApp.Views.LaunchToolView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:svc="clr-namespace:TodoApp.Services"
+             FontFamily="Segoe UI, Microsoft YaHei UI"
+             SnapsToDevicePixels="True" UseLayoutRounding="True"
+             AllowDrop="True" DragOver="View_DragOver" Drop="View_Drop">
+    <UserControl.Resources>
+        <Style x:Key="LaunchChip" TargetType="Button" BasedOn="{StaticResource ChipBtn}" />
+        <Style x:Key="LaunchInput" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource Surface2}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBody}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Padding" Value="9,7" />
+            <Setter Property="CaretBrush" Value="{DynamicResource Accent}" />
+        </Style>
+        <Style x:Key="LaunchFieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSub}" />
+            <Setter Property="Margin" Value="1,0,8,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="Separator">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Height="1" Background="{DynamicResource Line}" Margin="8,4" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- 分类页签 -->
+        <Style x:Key="CatTab" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="9"
+                                Padding="13,6" Margin="0,0,6,0" SnapsToDevicePixels="True">
+                            <Border x:Name="DropHint" Background="Transparent" CornerRadius="7">
+                                <TextBlock x:Name="Txt" Text="{Binding Name}" FontSize="12.5"
+                                           Foreground="{DynamicResource TextBody}"
+                                           FontWeight="Medium" />
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBg}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SegCheckedBg}" />
+                                <Setter TargetName="Txt" Property="Foreground" Value="{DynamicResource Accent}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="16,10,16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 工具栏 -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                <Button Style="{StaticResource LaunchChip}" Content="{Binding [LaunchAdd], Source={x:Static svc:Loc.Instance}}"
+                        Click="AddBtn_Click" Margin="0,0,10,0" />
+                <Button x:Name="SortBtn" Style="{StaticResource LaunchChip}"
+                        ToolTip="{Binding [LaunchSortTip], Source={x:Static svc:Loc.Instance}}"
+                        Margin="0,0,10,0" Click="SortBtn_Click" />
+                <Button Style="{StaticResource GhostBtn}" Content="{Binding [Edit], Source={x:Static svc:Loc.Instance}}"
+                        Click="EditBtn_Click" VerticalAlignment="Center" />
+                <Button Style="{StaticResource GhostBtn}" Content="{Binding [Delete], Source={x:Static svc:Loc.Instance}}"
+                        Click="DeleteBtn_Click" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center"
+                       FontSize="11" Foreground="{DynamicResource TextFaint}"
+                       Text="{Binding [LaunchDragHint], Source={x:Static svc:Loc.Instance}}"
+                       TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+
+        <!-- 分类页签栏 -->
+        <DockPanel Grid.Row="1" Margin="0,0,0,10">
+            <Button x:Name="AddCatBtn" DockPanel.Dock="Right" Style="{StaticResource LaunchChip}"
+                    VerticalAlignment="Center" Padding="8,5" Margin="2,0,0,0"
+                    ToolTip="{Binding [LaunchNewCat], Source={x:Static svc:Loc.Instance}}"
+                    FontFamily="{DynamicResource IconFont}" Content="&#xE710;" Click="AddCatBtn_Click" />
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <ListBox x:Name="Cats" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                         SelectionChanged="Cats_SelectionChanged"
+                         PreviewMouseRightButtonUp="Cats_PreviewMouseRightButtonUp"
+                         AllowDrop="True" DragOver="CatTab_DragOver" DragLeave="CatTab_DragLeave" Drop="CatTab_Drop">
+                    <ListBox.ContextMenu>
+                        <ContextMenu x:Name="CatMenu">
+                            <MenuItem Header="{Binding [LaunchRenameCat], Source={x:Static svc:Loc.Instance}}"
+                                      Click="CatRename_Click" />
+                            <MenuItem Header="{Binding [LaunchMoveUp], Source={x:Static svc:Loc.Instance}}"
+                                      Click="CatMoveUp_Click" />
+                            <MenuItem Header="{Binding [LaunchMoveDown], Source={x:Static svc:Loc.Instance}}"
+                                      Click="CatMoveDown_Click" />
+                            <Separator />
+                            <MenuItem Header="{Binding [LaunchDeleteCat], Source={x:Static svc:Loc.Instance}}"
+                                      Click="CatDelete_Click" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource CatTab}" />
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </ScrollViewer>
+        </DockPanel>
+
+        <!-- 编辑面板 -->
+        <Border x:Name="EditPanel" Grid.Row="2" Visibility="Collapsed"
+                Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}"
+                BorderThickness="1.4" CornerRadius="12" Padding="12,10" Margin="0,0,0,10">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.08" Color="#3A4160" />
+            </Border.Effect>
+            <StackPanel>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Style="{StaticResource LaunchFieldLabel}"
+                               Text="{Binding [LaunchName], Source={x:Static svc:Loc.Instance}}" />
+                    <TextBox x:Name="NameBox" Grid.Column="1" Style="{StaticResource LaunchInput}" />
+                </Grid>
+                <Grid Margin="0,0,0,10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource LaunchFieldLabel}"
+                               Text="{Binding [LaunchPath], Source={x:Static svc:Loc.Instance}}" />
+                    <TextBox x:Name="PathBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource LaunchInput}" />
+                    <Button x:Name="BrowseAppBtn" Grid.Row="0" Grid.Column="2" Style="{StaticResource LaunchChip}"
+                            Margin="8,0,0,0" Content="{Binding [LaunchBrowse], Source={x:Static svc:Loc.Instance}}"
+                            Click="BrowseAppBtn_Click" />
+                    <Button x:Name="BrowseFolderBtn" Grid.Row="0" Grid.Column="3" Style="{StaticResource LaunchChip}"
+                            Margin="8,0,0,0" Content="📁" Click="BrowseFolderBtn_Click"
+                            ToolTip="{Binding [LaunchPickApp], Source={x:Static svc:Loc.Instance}}" />
+                </Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource GhostBtn}" Content="{Binding [Cancel], Source={x:Static svc:Loc.Instance}}"
+                            Click="EditCancelBtn_Click" VerticalAlignment="Center" />
+                    <Button Style="{StaticResource AddBtn}" Content="{Binding [LaunchOk], Source={x:Static svc:Loc.Instance}}"
+                            Margin="10,0,0,0" Click="EditOkBtn_Click" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- 磁贴区 -->
+        <Grid Grid.Row="3">
+            <ScrollViewer x:Name="TileScroller" VerticalScrollBarVisibility="Auto">
+                <ListBox x:Name="Tiles" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         KeyDown="Tiles_KeyDown"
+                         AllowDrop="True"
+                         PreviewMouseLeftButtonDown="Tiles_PreviewMouseLeftButtonDown"
+                         PreviewMouseMove="Tiles_PreviewMouseMove"
+                         PreviewMouseLeftButtonUp="Tiles_PreviewMouseLeftButtonUp"
+                         PreviewMouseRightButtonUp="Tiles_PreviewMouseRightButtonUp"
+                         DragOver="Tiles_DragOver" Drop="Tiles_Drop">
+                    <ListBox.ContextMenu>
+                        <ContextMenu x:Name="TileMenu" Opened="TileMenu_Opened">
+                            <MenuItem Header="{Binding [LaunchOpen], Source={x:Static svc:Loc.Instance}}"
+                                      Click="TileOpen_Click" />
+                            <MenuItem Header="{Binding [Edit], Source={x:Static svc:Loc.Instance}}"
+                                      Click="TileEdit_Click" />
+                            <Separator />
+                            <MenuItem x:Name="TileMoveMenu"
+                                      Header="{Binding [LaunchMoveTo], Source={x:Static svc:Loc.Instance}}" />
+                            <Separator />
+                            <MenuItem Header="{Binding [LaunchMoveUp], Source={x:Static svc:Loc.Instance}}"
+                                      Click="TileMoveUp_Click" />
+                            <MenuItem Header="{Binding [LaunchMoveDown], Source={x:Static svc:Loc.Instance}}"
+                                      Click="TileMoveDown_Click" />
+                            <MenuItem Header="{Binding [Delete], Source={x:Static svc:Loc.Instance}}"
+                                      Click="TileDelete_Click" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="ToolTip" Value="{Binding CountTip}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Tile" Width="104" Height="96" Margin="0,0,10,10"
+                                                Background="{DynamicResource Card}" CornerRadius="12"
+                                                BorderThickness="1.6" BorderBrush="Transparent"
+                                                Cursor="Hand" SnapsToDevicePixels="True">
+                                            <Border.Effect>
+                                                <DropShadowEffect BlurRadius="10" ShadowDepth="1" Direction="270"
+                                                                  Opacity="0.07" Color="#3A4160" />
+                                            </Border.Effect>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <Image x:Name="TileIcon" Source="{Binding Icon}" Width="32" Height="32"
+                                                       HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <TextBlock Text="{Binding Name}" FontSize="11.5"
+                                                           Foreground="{DynamicResource TextBody}"
+                                                           HorizontalAlignment="Center" Margin="6,8,6,0"
+                                                           TextWrapping="Wrap" TextAlignment="Center"
+                                                           MaxHeight="32" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                                    <Setter TargetName="Tile" Property="Background" Value="{DynamicResource ChipBg}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </ScrollViewer>
+
+            <StackPanel x:Name="EmptyState" Visibility="Collapsed"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border Width="72" Height="72" CornerRadius="36"
+                        Background="{DynamicResource Card}">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="18" ShadowDepth="2" Direction="270"
+                                          Opacity="0.10" Color="#3A4160" />
+                    </Border.Effect>
+                    <TextBlock FontFamily="{DynamicResource IconFont}" Text="&#xE71D;" FontSize="30"
+                               Foreground="{DynamicResource Accent}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="{Binding [LaunchEmpty], Source={x:Static svc:Loc.Instance}}"
+                           FontSize="12.5" Foreground="{DynamicResource TextSub}"
+                           TextAlignment="Center" Margin="0,16,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

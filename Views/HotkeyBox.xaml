@@ -1,0 +1,29 @@
+<UserControl x:Class="TodoApp.Views.HotkeyBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI, Microsoft YaHei UI"
+             SnapsToDevicePixels="True" UseLayoutRounding="True">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock x:Name="LabelText" FontSize="11.5" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextSub}" VerticalAlignment="Center"
+                       Margin="1,0,10,0" MinWidth="90" MaxWidth="108"
+                       TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+            <Border x:Name="Box" CornerRadius="9" Background="{DynamicResource Surface2}"
+                    BorderBrush="{DynamicResource Line}" BorderThickness="1.4"
+                    Padding="12,7" MinWidth="118" MaxWidth="170"
+                    Focusable="True" Cursor="Hand"
+                    PreviewKeyDown="Box_PreviewKeyDown"
+                    MouseLeftButtonUp="Box_Click"
+                    GotFocus="Box_FocusChanged" LostFocus="Box_FocusChanged">
+                <TextBlock x:Name="ComboText" Text="—" FontSize="12.5"
+                           Foreground="{DynamicResource TextMain}"
+                           HorizontalAlignment="Center" />
+            </Border>
+            <Button x:Name="OffBtn" Style="{StaticResource ChipBtn}" Margin="8,0,0,0"
+                    Padding="8,4" VerticalAlignment="Center" Click="OffBtn_Click" />
+        </StackPanel>
+        <TextBlock x:Name="StatusText" FontSize="11" Margin="2,6,0,0" TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextSub}" />
+    </StackPanel>
+</UserControl>

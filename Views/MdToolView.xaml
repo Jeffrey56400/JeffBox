@@ -1,0 +1,87 @@
+<UserControl x:Class="TodoApp.Views.MdToolView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:svc="clr-namespace:TodoApp.Services"
+             FontFamily="Segoe UI, Microsoft YaHei UI"
+             SnapsToDevicePixels="True" UseLayoutRounding="True"
+             Focusable="True"
+             PreviewKeyDown="View_PreviewKeyDown"
+             AllowDrop="True" DragOver="View_DragOver" Drop="View_Drop">
+    <UserControl.Resources>
+        <Style x:Key="MdToolBarBtn" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource ChipBg}" />
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.FontWeight="Medium" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MdEditor" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource Card}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBody}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource Accent}" />
+            <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="AcceptsReturn" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="16,10,16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 工具栏 -->
+        <DockPanel Grid.Row="0" LastChildFill="False">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource MdToolBarBtn}" Content="{Binding [MdNew], Source={x:Static svc:Loc.Instance}}" Click="NewBtn_Click" />
+                <Button Style="{StaticResource MdToolBarBtn}" Content="{Binding [MdOpen], Source={x:Static svc:Loc.Instance}}" Click="OpenBtn_Click" />
+                <Button Style="{StaticResource MdToolBarBtn}" Content="{Binding [Save], Source={x:Static svc:Loc.Instance}}" Click="SaveBtn_Click" />
+                <Button Style="{StaticResource MdToolBarBtn}" Content="{Binding [MdSaveAs], Source={x:Static svc:Loc.Instance}}" Click="SaveAsBtn_Click" />
+            </StackPanel>
+            <Button x:Name="ModeBtn" DockPanel.Dock="Right" Style="{StaticResource MdToolBarBtn}"
+                    Content="{Binding [Preview], Source={x:Static svc:Loc.Instance}}"
+                    Click="ModeBtn_Click" />
+        </DockPanel>
+
+        <!-- 文件路径 / 状态 -->
+        <TextBlock x:Name="PathLabel" Grid.Row="1" FontSize="11"
+                   Foreground="{DynamicResource TextFaint}"
+                   Margin="2,8,2,6" TextTrimming="CharacterEllipsis" />
+
+        <!-- 内容区：编辑 ⇄ 预览 同一位置切换 -->
+        <Grid Grid.Row="2">
+            <TextBox x:Name="Editor" Style="{StaticResource MdEditor}"
+                     TextChanged="Editor_TextChanged"
+                     PreviewKeyDown="Editor_PreviewKeyDown" />
+            <ScrollViewer x:Name="PreviewHost" ScrollChanged="PreviewHost_ScrollChanged" Visibility="Collapsed"
+                          Background="{DynamicResource Surface2}"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="PreviewPanel" Margin="14,10" />
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,15 @@
+# 构建产物
+bin/
+obj/
+.vs/
+publish/
+*.user
+*.suo
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# 本地临时
+.test/
+.user-backup/
