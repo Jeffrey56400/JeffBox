@@ -1830,6 +1830,11 @@ public partial class MainWindow : Window
     {
         if (_toolViews == null || tab == _tab) return;
         _tab = tab;
+        // 同步左侧导航选中态：程序化切换（打开MD/热键直达/上次工具恢复）不会自动勾选，
+        // 不同步会导致导航高亮停留在待办、内容却是其他工具页
+        var nav = tab == ToolTab.Md ? NavMd : tab == ToolTab.Launch ? NavLaunch : NavTodo;
+        if (nav.IsChecked != true)
+            nav.IsChecked = true; // 触发 NavXxx_Checked → SwitchTool，此时 _tab 已相等会直接返回
         _settings.LastTool = tab == ToolTab.Md ? "md" : tab == ToolTab.Launch ? "launch" : "todo";
         _settings.Save();
         if (tab != ToolTab.Md)
