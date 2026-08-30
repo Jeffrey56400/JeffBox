@@ -8,6 +8,27 @@
              PreviewKeyDown="View_PreviewKeyDown"
              AllowDrop="True" DragOver="View_DragOver" Drop="View_Drop">
     <UserControl.Resources>
+        <Style x:Key="RecentItemBtn" TargetType="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="MdToolBarBtn" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource ChipBg}" />
             <Setter Property="Foreground" Value="{DynamicResource Accent}" />
@@ -59,6 +80,8 @@
             <StackPanel Orientation="Horizontal">
                 <Button Style="{StaticResource MdToolBarBtn}" Content="{Binding [MdNew], Source={x:Static svc:Loc.Instance}}" Click="NewBtn_Click" />
                 <Button Style="{StaticResource MdToolBarBtn}" Content="{Binding [MdOpen], Source={x:Static svc:Loc.Instance}}" Click="OpenBtn_Click" />
+                <Button x:Name="RecentBtn" Style="{StaticResource MdToolBarBtn}"
+                        Content="{Binding [MdRecent], Source={x:Static svc:Loc.Instance}}" />
                 <Button Style="{StaticResource MdToolBarBtn}" Content="{Binding [Save], Source={x:Static svc:Loc.Instance}}" Click="SaveBtn_Click" />
                 <Button Style="{StaticResource MdToolBarBtn}" Content="{Binding [MdSaveAs], Source={x:Static svc:Loc.Instance}}" Click="SaveAsBtn_Click" />
             </StackPanel>

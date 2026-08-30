@@ -26,6 +26,9 @@ public class AppSettings
     /// <summary>MD 工具上次编辑的文件</summary>
     public string RecentMd { get; set; } = "";
 
+    /// <summary>MD 最近打开的文件（新的在前，上限 10 由写入方维护）</summary>
+    public List<string> RecentFiles { get; set; } = new();
+
     /// <summary>双击 .md 用工具箱打开（文件关联）</summary>
     public bool MdAssociate { get; set; } = true;
 

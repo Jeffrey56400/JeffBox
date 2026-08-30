@@ -11,6 +11,7 @@ using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using MessageBox = System.Windows.MessageBox;
 using DragEventArgs = System.Windows.DragEventArgs;
 using DataFormats = System.Windows.DataFormats;
+using Button = System.Windows.Controls.Button;
 
 /// <summary>
 /// Markdown 编辑阅读器：单页内「编辑 ⇄ 预览」切换。
@@ -37,6 +38,7 @@ public partial class MdToolView : UserControl
     public MdToolView()
     {
         InitializeComponent();
+        RecentBtn.Click += RecentBtn_Click;
         UpdatePathLabel();
     }
 
@@ -81,8 +83,72 @@ public partial class MdToolView : UserControl
     {
         if (_file == null) return;
         var s = AppSettings.Load();
-        if (s.RecentMd == _file) return;
-        s.RecentMd = _file;
+        if (s.RecentMd != _file)
+        {
+            s.RecentMd = _file;
+        }
+        // 最近列表：去重置顶，上限 10
+        s.RecentFiles.RemoveAll(f => f.Equals(_file, StringComparison.OrdinalIgnoreCase));
+        s.RecentFiles.Insert(0, _file);
+        if (s.RecentFiles.Count > 10) s.RecentFiles.RemoveRange(10, s.RecentFiles.Count - 10);
+        s.Save();
+    }
+
+    // ---------- 最近打开 ----------
+
+    void RecentBtn_Click(object sender, RoutedEventArgs e)
+    {
+        BuildRecentMenu();
+        if (RecentBtn.ContextMenu != null)
+        {
+            RecentBtn.ContextMenu.PlacementTarget = RecentBtn;
+            RecentBtn.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            RecentBtn.ContextMenu.IsOpen = true;
+        }
+    }
+
+    void BuildRecentMenu()
+    {
+        var menu = new ContextMenu();
+        var files = AppSettings.Load().RecentFiles;
+        var shown = 0;
+        foreach (var f in files)
+        {
+            if (!File.Exists(f)) continue;
+            shown++;
+            var path = f;
+            var mi = new MenuItem
+            {
+                Header = System.IO.Path.GetFileName(path),
+                ToolTip = path,
+            };
+            mi.Click += (_, _) =>
+            {
+                if (!File.Exists(path))
+                {
+                    RemoveRecent(path);
+                    _trayWarn(Loc.Get("MdFileMissing") + " · " + path);
+                    return;
+                }
+                if (!ConfirmDiscard()) return;
+                LoadFile(path);
+            };
+            menu.Items.Add(mi);
+        }
+        if (shown == 0)
+            menu.Items.Add(new MenuItem
+            {
+                Header = Loc.Get("MdRecentEmpty"),
+                IsEnabled = false,
+            });
+        RecentBtn.ContextMenu = menu;
+    }
+
+    static void RemoveRecent(string path)
+    {
+        var s = AppSettings.Load();
+        s.RecentFiles.RemoveAll(f => f.Equals(path, StringComparison.OrdinalIgnoreCase));
+        if (s.RecentMd == path) s.RecentMd = "";
         s.Save();
     }
 
