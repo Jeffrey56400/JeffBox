@@ -1483,6 +1483,10 @@
                                    VerticalAlignment="Center" TextWrapping="Wrap" />
                     </Grid>
 
+                    <TextBlock x:Name="OpenPosLabelTb" Style="{StaticResource SettingsLabel}" Text="打开位置" />
+                    <ComboBox x:Name="OpenPosCombo" Style="{StaticResource FlatCombo}" Width="196"
+                              HorizontalAlignment="Left" SelectionChanged="OpenPosCombo_SelectionChanged" />
+
                     <TextBlock x:Name="HotkeyLabelTb" Style="{StaticResource SettingsLabel}" Text="全局快捷键" />
                     <StackPanel>
                         <views:HotkeyBox x:Name="HkMain" />

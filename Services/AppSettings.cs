@@ -45,6 +45,9 @@ public class AppSettings
     /// <summary>开机自启动</summary>
     public bool AutoStart { get; set; }
 
+    /// <summary>启动 / 快捷方式呼出时窗口出现的位置：remember(默认) / screen(鼠标屏居中) / near(鼠标附近)</summary>
+    public string OpenPosition { get; set; } = "remember";
+
     static string Dir =>
         AppPaths.DataDir;
 

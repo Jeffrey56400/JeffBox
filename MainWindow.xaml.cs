@@ -52,7 +52,7 @@ public partial class MainWindow : Window
     const int WM_HOTKEY = 0x0312;
     const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string RunValueName = "JeffBox";
-    const string AppVersion = "1.0.0";
+    const string AppVersion = "1.0.2";
 
     readonly ObservableCollection<TodoViewModel> _all = new();   // 仅根任务
     readonly ObservableCollection<TodoViewModel> _view = new();
@@ -191,6 +191,8 @@ public partial class MainWindow : Window
         _hookSource = HwndSource.FromHwnd(_hwnd);
         _hookSource?.AddHook(WndProc);
         RestoreWindowBounds();
+        // 打开位置：鼠标屏居中 / 鼠标附近（设置项）。静默启动不定屏，等用户真正呼出再说
+        if (!App.StartMinimized) ApplyOpenPosition();
         // 启动即恢复最大化时 OnStateChanged 早于实际尺寸，补偿边距要等布局后再算
         SizeChanged += (_, _) => FixMaximizedMargin();
         ApplyMdAssociation(_settings.MdAssociate);
@@ -201,8 +203,13 @@ public partial class MainWindow : Window
 
         if (App.StartMinimized)
         {
-            Hide();
-            _trayTipShown = true; // 静默启动不弹提示
+            // OnSourceInitialized 阶段 _isVisible 还是 false，直接 Hide() 是空操作；
+            // 排到布局后再隐藏，静默启动才真正不闪窗口
+            Dispatcher.BeginInvoke(() =>
+            {
+                Hide();
+                _trayTipShown = true; // 静默启动不弹提示
+            });
         }
     }
 
@@ -1252,9 +1259,13 @@ public partial class MainWindow : Window
 
     public void ShowFromTray()
     {
+        // 所有呼出方式（全局热键/直达热键/托盘/快捷方式二次启动）的总入口。
+        // 顺序很关键：必须先把窗口真正显示并还原成 Normal（最小化时 GetWindowRect 是
+        // (-32000,-32000) 假坐标、隐藏时 WindowState 只是缓存值），物理像素定位才有效
         Show();
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
+        ApplyOpenPosition();
         Activate();
         Native.SetForegroundWindow(_hwnd);
         InputBox.Focus();
@@ -1332,10 +1343,11 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
-    /// <summary>工具直达：窗口隐藏→呼出并切换；已在目标页→收起；在其他页→切换</summary>
+    /// <summary>工具直达：窗口隐藏/最小化→呼出并切换；已在目标页→收起；在其他页→切换。
+    /// 最小化的窗口 IsVisible 仍是 true，必须一并视作"未呼出"，否则同页热键会把它藏掉而不是还原</summary>
     void SummonTool(ToolTab tab)
     {
-        if (!IsVisible) { ShowFromTray(); SwitchTool(tab); }
+        if (!IsVisible || WindowState == WindowState.Minimized) { ShowFromTray(); SwitchTool(tab); }
         else if (tab == _tab) Hide();
         else SwitchTool(tab);
         // 热键呼出意味着用户要立刻用工具，浮层不应挡着
@@ -1501,6 +1513,35 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---------- 打开位置 ----------
+
+    bool _posComboReady;
+
+    void RebuildOpenPosItems()
+    {
+        OpenPosCombo.Items.Clear();
+        OpenPosCombo.Items.Add(new ComboBoxItem { Content = Loc.Get("OpenPosRemember"), Tag = "remember" });
+        OpenPosCombo.Items.Add(new ComboBoxItem { Content = Loc.Get("OpenPosScreen"), Tag = "screen" });
+        OpenPosCombo.Items.Add(new ComboBoxItem { Content = Loc.Get("OpenPosNear"), Tag = "near" });
+        SyncOpenPos();
+    }
+
+    void SyncOpenPos()
+    {
+        var v = _settings.OpenPosition;
+        int idx = v == "screen" ? 1 : v == "near" ? 2 : 0;
+        if (OpenPosCombo.SelectedIndex != idx) OpenPosCombo.SelectedIndex = idx;
+    }
+
+    void OpenPosCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_posComboReady || OpenPosCombo.SelectedItem is not ComboBoxItem it) return;
+        var v = it.Tag as string ?? "remember";
+        if (_settings.OpenPosition == v) return;
+        _settings.OpenPosition = v;
+        _settings.Save();
+    }
+
     // ---------- 语言 ----------
 
     void ApplyLanguage()
@@ -1570,6 +1611,9 @@ public partial class MainWindow : Window
         CloseExitRadio.Content = Loc.Get("ExitDirectly");
         AutoStartLabelTb.Text = Loc.Get("AutoStartLabel");
         AutoStartHintTb.Text = Loc.Get("AutoStartHint");
+        OpenPosLabelTb.Text = Loc.Get("OpenPosLabel");
+        RebuildOpenPosItems();
+        _posComboReady = true;
         HotkeyLabelTb.Text = Loc.Get("HotkeyLabel");
         HkMain.RefreshLocale();
         HkTodo.RefreshLocale();
@@ -1870,6 +1914,48 @@ public partial class MainWindow : Window
 
     // ---------- 窗口状态持久化 ----------
 
+    /// <summary>
+    /// 按设置把窗口挪到鼠标处：screen=鼠标所在显示器工作区居中，near=以鼠标为中心。
+    /// 全程用物理像素（混合 DPI 多显示器下 SetWindowPos 比换算 DIP 更稳），
+    /// 最后夹回工作区，保证窗口完整可见、不压任务栏。
+    /// </summary>
+    void ApplyOpenPosition()
+    {
+        var mode = _settings.OpenPosition;
+        if (mode != "screen" && mode != "near") return;
+        if (_hwnd == IntPtr.Zero) return;
+        try
+        {
+            if (!Native.GetCursorPos(out var pt)) return;
+            var mon = Native.MonitorFromPoint(pt, Native.MONITOR_DEFAULTTONEAREST);
+            var mi = new Native.MONITORINFO
+            {
+                cbSize = System.Runtime.InteropServices.Marshal.SizeOf<Native.MONITORINFO>(),
+            };
+            if (!Native.GetMonitorInfo(mon, ref mi)) return;
+            var work = mi.rcWork;
+            int waW = work.right - work.left, waH = work.bottom - work.top;
+            if (waW <= 0 || waH <= 0) return;
+
+            // 记住的是最大化：先还原、挪屏、再最大化（最大化会落在窗口所在的那块屏）
+            bool wasMax = WindowState == WindowState.Maximized;
+            if (wasMax) WindowState = WindowState.Normal;
+
+            if (!Native.GetWindowRect(_hwnd, out var wr)) return;
+            int w = Math.Min(wr.right - wr.left, waW);
+            int h = Math.Min(wr.bottom - wr.top, waH);
+            int x = mode == "near" ? pt.x - w / 2 : work.left + (waW - w) / 2;
+            int y = mode == "near" ? pt.y - h / 2 : work.top + (waH - h) / 2;
+            x = Math.Clamp(x, work.left, work.right - w);
+            y = Math.Clamp(y, work.top, work.bottom - h);
+            Native.SetWindowPos(_hwnd, IntPtr.Zero, x, y, 0, 0,
+                Native.SWP_NOZORDER | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+
+            if (wasMax) WindowState = WindowState.Maximized;
+        }
+        catch { }
+    }
+
     void RestoreWindowBounds()
     {
         if (!double.IsNaN(_settings.WinX) && !double.IsNaN(_settings.WinY) &&
@@ -1922,9 +2008,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var reqPath = System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "TodoApp", "open_request.txt");
+            var reqPath = Path.Combine(AppPaths.DataDir, "open_request.txt");
             if (!System.IO.File.Exists(reqPath)) return;
             var mdPath = System.IO.File.ReadAllText(reqPath).Trim();
             System.IO.File.Delete(reqPath);
@@ -1986,4 +2070,39 @@ static class Native
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     public static extern int GetSystemMetrics(int nIndex);
+
+    // 打开位置：鼠标 / 显示器查询（物理像素）
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    public struct POINT { public int x, y; }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    public struct RECT { public int left, top, right, bottom; }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    public struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    public const uint MONITOR_DEFAULTTONEAREST = 2;
+    public const uint SWP_NOSIZE = 0x1, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out POINT lpPoint);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+        int x, int y, int cx, int cy, uint uFlags);
 }

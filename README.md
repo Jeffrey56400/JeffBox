@@ -52,6 +52,7 @@
 - Tray-resident (switchable to "exit on close"), optional auto-start, single instance with argument forwarding
 - **Fully customizable hotkeys**: click the box and just press the combo. On failure, three-layer conflict diagnosis — a knowledge base of common defaults (WeChat/QQ/DingTalk/NetEase/Snipaste…), **live response forensics** (names the app that actually reacted to your keypress), then generic guidance. Reserved combos (Alt+F4 etc.) are blocked up front
 - Window state memory: position/size/maximized, multi-monitor safe
+- **Open where your mouse is**: summon the window by hotkey, tray icon or shortcut and it appears on the mouse's monitor (centered) or right beside the cursor — configurable in Settings, off by default
 - Recently-opened documents list in Notes
 
 ## Getting started
