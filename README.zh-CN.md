@@ -60,7 +60,10 @@
 
 **方式一：下载发布版**
 
-到 [Releases](../../releases) 下载 `JeffBox.exe`，双击运行。需要 .NET Desktop Runtime 9.x（多数 Win10/11 已自带或自动提示安装）。
+每个版本提供两个下载：
+
+- **`JeffBox-SelfContained.exe`**（163 MB）——**推荐大多数用户**：自带 .NET 运行时，无需安装任何东西，下载即用
+- `JeffBox.exe`（455 KB）——轻量版：需已安装 .NET Desktop Runtime 9.x（多数 Win10/11 已自带或会自动提示安装）
 
 **方式二：从源码构建**
 

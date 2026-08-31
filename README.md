@@ -58,7 +58,10 @@
 
 **Option 1 — grab a release**
 
-Download `JeffBox.exe` from [Releases](../../releases) and run it. Requires the .NET Desktop Runtime 9.x (most Windows 10/11 machines already have it or will be prompted once).
+Two builds are published for every release:
+
+- **`JeffBox-SelfContained.exe`** (163 MB) — recommended for most users: bundles the .NET runtime, nothing to install, just download and run
+- **`JeffBox.exe`** (455 KB) — lightweight build, requires .NET Desktop Runtime 9.x (most Windows 10/11 machines already have it or will be prompted once)
 
 **Option 2 — build from source**
 
