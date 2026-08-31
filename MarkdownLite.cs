@@ -46,8 +46,19 @@ public static partial class MarkdownLite
 public static void Render(StackPanel host, string md, Func<string, string?> imageResolver)
     {
         host.Children.Clear();
-        foreach (var el in EnumerateBlocks(md, imageResolver))
-            host.Children.Add(el);
+        try
+        {
+            foreach (var el in EnumerateBlocks(md, imageResolver))
+                host.Children.Add(el);
+        }
+        catch (Exception ex)
+        {
+            // 渲染异常绝不冒泡成闪退：显示错误块并保留原文
+            App.LogCrash("MarkdownRender", ex);
+            var tb = MakeText(Loc.Get("MdRenderFail"), 12.5, FontWeights.Normal, "Danger");
+            tb.Margin = new System.Windows.Thickness(0, 0, 0, 8);
+            host.Children.Add(tb);
+        }
     }
 
     /// <summary>惰性逐块产出元素：调用方可分块消费，超大文件无需一次性建完整视觉树</summary>
