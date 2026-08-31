@@ -12,6 +12,20 @@ public partial class App : System.Windows.Application
 
     public static bool StartMinimized;
     public static string? PendingOpenFile;
+
+    internal static void LogCrash(string source, Exception? ex)
+    {
+        try
+        {
+            var msg = ex == null ? "(null)" : ex.ToString();
+            if (ex?.InnerException != null) msg += "\n-- Inner --\n" + ex.InnerException;
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(Services.AppPaths.DataDir, "crash.log"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {source}\n{msg}\n---\n");
+        }
+        catch { }
+    }
+
     static string OpenRequestPath =>
 System.IO.Path.Combine(Services.AppPaths.DataDir, "open_request.txt");
 
@@ -23,6 +37,14 @@ System.IO.Path.Combine(Services.AppPaths.DataDir, "open_request.txt");
     protected override void OnStartup(StartupEventArgs e)
     {
         Services.AppPaths.EnsureMigrated(); // v1.0 更名 JeffBox：首启迁移旧 TodoApp 数据
+        // 崩溃捕获：未处理异常写日志而不是静默闪退，便于定位（%APPDATA%\JeffBox\crash.log）
+        System.Windows.Application.Current.DispatcherUnhandledException += (_, ex) =>
+        {
+            LogCrash("UI", ex.Exception);
+            ex.Handled = true; // 记录后吞掉，避免输入过程闪退丢内容
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
+            LogCrash("Domain", ex.ExceptionObject as Exception);
         try { System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance); } catch { }
         // 先解析命令行（二次实例也要用它传递文件），再进入单实例判断
         foreach (var a in e.Args)

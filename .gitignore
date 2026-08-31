@@ -13,3 +13,8 @@ Thumbs.db
 # 本地临时
 .test/
 .user-backup/
+
+# 发布产物
+publish/
+publish-sc/
+*.pdb
