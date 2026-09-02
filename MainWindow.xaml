@@ -562,7 +562,9 @@
             <Setter Property="CaretBrush" Value="{DynamicResource Accent}" />
             <Setter Property="Padding" Value="10,8" />
             <Setter Property="MinHeight" Value="86" />
-            <Setter Property="MaxHeight" Value="170" />
+            <Setter Property="MaxHeight" Value="260" />
+            <!-- 内容超长时出现滚动条：MaxHeight 封顶后wheel/滚动条都能看到全部内容 -->
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
             <Setter Property="AcceptsReturn" Value="True" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="VerticalContentAlignment" Value="Top" />
@@ -1010,11 +1012,13 @@
             <!-- 完整创建卡：与详情浮层同构，一步创建 -->
             <Border x:Name="NewDetailsPanel" Visibility="Collapsed" Background="{DynamicResource Card}"
                     BorderBrush="{DynamicResource Line}" BorderThickness="1.4"
-                    CornerRadius="12" Padding="12,10" Margin="0,0,0,2">
+                    CornerRadius="12" Padding="12,10" Margin="0,0,0,2"
+                    MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource FindAncestor, AncestorType=Window}}">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="14" ShadowDepth="2" Direction="270"
                                       Opacity="0.08" Color="#3A4160" />
                 </Border.Effect>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                     <Grid>
                         <TextBlock x:Name="NewDetailsLabelTb" Style="{StaticResource DetailLabel}"
@@ -1123,6 +1127,7 @@
                         </TextBlock>
                     </Grid>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
         </StackPanel>
 
@@ -1254,7 +1259,8 @@
             <Border x:Name="OverlayMask" Background="#73161C2E" Opacity="0"
                     MouseLeftButtonUp="OverlayMask_MouseLeftButtonUp" />
             <Border x:Name="OverlayCard" Width="382" CornerRadius="16" Background="{DynamicResource Card}"
-                    Padding="22,18" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Padding="22,18" Margin="0,16" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource FindAncestor, AncestorType=Window}}"
                     Opacity="0" RenderTransformOrigin="0.5,0.5">
                 <Border.RenderTransform>
                     <ScaleTransform x:Name="OverlayScale" ScaleX="0.96" ScaleY="0.96" />
@@ -1262,7 +1268,7 @@
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="8" Opacity="0.30" Color="#1A2038" />
                 </Border.Effect>
-                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="600">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <Grid>
                             <TextBlock x:Name="DetailTitleTb" Text="待办详情" FontSize="11.5" FontWeight="SemiBold"
