@@ -562,20 +562,20 @@
             <Setter Property="CaretBrush" Value="{DynamicResource Accent}" />
             <Setter Property="Padding" Value="10,8" />
             <Setter Property="MinHeight" Value="86" />
-            <Setter Property="MaxHeight" Value="260" />
-            <!-- 内容超长时出现滚动条：MaxHeight 封顶后wheel/滚动条都能看到全部内容 -->
-            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+            <!-- 高度上限（若有）必须由使用处显式给；基础样式不限高，内容全部展开，
+                 溢出交给外层浮层滚动，避免输入框内部滚动吞滚轮 -->
             <Setter Property="AcceptsReturn" Value="True" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="VerticalContentAlignment" Value="Top" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="9" Padding="{TemplateBinding Padding}">
-                            <ScrollViewer x:Name="PART_ContentHost" />
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="9" Padding="{TemplateBinding Padding}">
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocused" Value="True">
@@ -587,11 +587,9 @@
             </Setter>
         </Style>
 
-        <!-- 创建时的内联详情输入 -->
+        <!-- 创建时的内联详情输入：随内容增长（外层创建卡自身可滚动） -->
         <Style x:Key="NewDetailsBox" TargetType="TextBox" BasedOn="{StaticResource NotesBox}">
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Height" Value="72" />
-            <Setter Property="MaxHeight" Value="140" />
+            <Setter Property="MinHeight" Value="72" />
             <Setter Property="Padding" Value="10,7" />
             <Setter Property="FontSize" Value="12.5" />
         </Style>

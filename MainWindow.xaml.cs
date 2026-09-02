@@ -52,7 +52,7 @@ public partial class MainWindow : Window
     const int WM_HOTKEY = 0x0312;
     const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string RunValueName = "JeffBox";
-    const string AppVersion = "1.0.3";
+    const string AppVersion = "1.0.4";
 
     readonly ObservableCollection<TodoViewModel> _all = new();   // 仅根任务
     readonly ObservableCollection<TodoViewModel> _view = new();
