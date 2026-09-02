@@ -8,7 +8,6 @@ using TodoApp.Services;
 namespace TodoApp.Views;
 using UserControl = System.Windows.Controls.UserControl;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
-using MessageBox = System.Windows.MessageBox;
 using DragEventArgs = System.Windows.DragEventArgs;
 using DataFormats = System.Windows.DataFormats;
 using Button = System.Windows.Controls.Button;
@@ -43,9 +42,9 @@ public partial class MdToolView : UserControl
     }
 
     /// <summary>外部打开（双击 / 打开方式 / 拖入）：加载后进入阅读（预览）模式</summary>
-    public void OpenExternal(string path)
+    public async Task OpenExternalAsync(string path)
     {
-        if (!ConfirmDiscard()) return;
+        if (!await ConfirmDiscardAsync()) return;
         LoadFile(path);
         if (_readOnly)
             EnterPreviewMode();
@@ -122,7 +121,7 @@ public partial class MdToolView : UserControl
                 Header = System.IO.Path.GetFileName(path),
                 ToolTip = path,
             };
-            mi.Click += (_, _) =>
+            mi.Click += async (_, _) =>
             {
                 if (!File.Exists(path))
                 {
@@ -130,7 +129,7 @@ public partial class MdToolView : UserControl
                     _trayWarn(Loc.Get("MdFileMissing") + " · " + path);
                     return;
                 }
-                if (!ConfirmDiscard()) return;
+                if (!await ConfirmDiscardAsync()) return;
                 LoadFile(path);
             };
             menu.Items.Add(mi);
@@ -154,9 +153,9 @@ public partial class MdToolView : UserControl
 
     // ---------- 文件操作 ----------
 
-    void NewBtn_Click(object sender, RoutedEventArgs e)
+    async void NewBtn_Click(object sender, RoutedEventArgs e)
     {
-        if (!ConfirmDiscard()) return;
+        if (!await ConfirmDiscardAsync()) return;
         _loading = true;
         _file = null;
         Editor.Clear();
@@ -173,9 +172,9 @@ public partial class MdToolView : UserControl
         Editor.Focus();
     }
 
-    void OpenBtn_Click(object sender, RoutedEventArgs e)
+    async void OpenBtn_Click(object sender, RoutedEventArgs e)
     {
-        if (!ConfirmDiscard()) return;
+        if (!await ConfirmDiscardAsync()) return;
         var ofd = new Microsoft.Win32.OpenFileDialog
         {
             Filter = Loc.Get("FilterMd"),
@@ -284,14 +283,13 @@ public partial class MdToolView : UserControl
         win?.ShowTrayWarning(Loc.Get("ImportFailed") + " · " + path);
     }
 
-    /// <summary>未保存时询问；返回 false = 用户取消操作</summary>
-    public bool ConfirmDiscard()
+    /// <summary>未保存时询问（主题化三态弹窗）；返回 false = 用户取消操作</summary>
+    public async Task<bool> ConfirmDiscardAsync()
     {
         if (!_dirty) return true;
-        var r = MessageBox.Show(Window.GetWindow(this), Loc.Get("MdDirtyHint"),
-            Loc.Get("AppTitle"), MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (r == MessageBoxResult.Cancel) return false;
-        if (r == MessageBoxResult.Yes) return Save();
+        var r = await ThemeDialog.ConfirmSaveAsync(Loc.Get("MdDirtyHint"));
+        if (r == null) return false;
+        if (r == true) return Save();
         SetDirty(false);
         return true;
     }
@@ -409,7 +407,7 @@ public partial class MdToolView : UserControl
     // ---------- 拖拽打开 ----------
     void View_DragOver(object sender, DragEventArgs e) => e.Handled = true;
 
-    void View_Drop(object sender, DragEventArgs e)
+    async void View_Drop(object sender, DragEventArgs e)
     {
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
         if (e.Data.GetData(DataFormats.FileDrop) is not string[] files || files.Length == 0) return;
@@ -420,7 +418,7 @@ public partial class MdToolView : UserControl
         });
         if (md == null) return;
         e.Handled = true;
-        if (!ConfirmDiscard()) return;
+        if (!await ConfirmDiscardAsync()) return;
         LoadFile(md);
         EnterPreviewMode();
     }

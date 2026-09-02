@@ -52,7 +52,7 @@ public partial class MainWindow : Window
     const int WM_HOTKEY = 0x0312;
     const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string RunValueName = "JeffBox";
-    const string AppVersion = "1.0.4";
+    const string AppVersion = "1.0.5";
 
     readonly ObservableCollection<TodoViewModel> _all = new();   // 仅根任务
     readonly ObservableCollection<TodoViewModel> _view = new();
@@ -118,7 +118,7 @@ public partial class MainWindow : Window
             var f = App.PendingOpenFile;
             App.PendingOpenFile = null;
             SwitchTool(ToolTab.Md);
-            MdView.OpenExternal(f);
+            _ = MdView.OpenExternalAsync(f);
         }
         else if (_settings.LastTool == "md") SwitchTool(ToolTab.Md);
         else if (_settings.LastTool == "launch") SwitchTool(ToolTab.Launch);
@@ -213,17 +213,24 @@ public partial class MainWindow : Window
         }
     }
 
-    protected override void OnClosing(CancelEventArgs e)
+    bool _mdCloseConfirmed;
+
+    protected override async void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);
         SaveWindowBounds();
         if (_forceExit || !_settings.MinimizeToTray)
         {
-            // 真正退出前：MD 有未保存修改时询问
-            if (!MdView.ConfirmDiscard())
+            // 真正退出前：MD 有未保存修改时询问（主题化弹窗是异步的：
+            // 先拦截关闭，等用户选完再真正关）
+            if (!_mdCloseConfirmed)
             {
                 e.Cancel = true;
-                return;
+                if (await MdView.ConfirmDiscardAsync())
+                {
+                    _mdCloseConfirmed = true;
+                    Close();
+                }
             }
             return;
         }
@@ -1897,7 +1904,7 @@ public partial class MainWindow : Window
 
     void Window_DragOver(object sender, DragEventArgs e) => e.Handled = true;
 
-    void Window_Drop(object sender, DragEventArgs e)
+    async void Window_Drop(object sender, DragEventArgs e)
     {
         if (!e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop)) return;
         if (e.Data.GetData(System.Windows.DataFormats.FileDrop) is not string[] files || files.Length == 0) return;
@@ -1909,7 +1916,7 @@ public partial class MainWindow : Window
         if (md == null) return;
         e.Handled = true;
         SwitchTool(ToolTab.Md);
-        MdView.OpenExternal(md);
+        await MdView.OpenExternalAsync(md);
     }
 
     // ---------- 窗口状态持久化 ----------
@@ -2004,7 +2011,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>消费"打开方式"请求：切到笔记工具并加载该文件</summary>
-    public void ConsumeOpenRequest()
+    public async void ConsumeOpenRequest()
     {
         try
         {
@@ -2014,7 +2021,7 @@ public partial class MainWindow : Window
             System.IO.File.Delete(reqPath);
             if (mdPath.Length == 0 || !System.IO.File.Exists(mdPath)) return;
             SwitchTool(ToolTab.Md);
-            MdView.OpenExternal(mdPath);
+            await MdView.OpenExternalAsync(mdPath);
         }
         catch { }
     }

@@ -119,6 +119,32 @@
                 </Setter.Value>
             </Setter>
         </Style>
+<!-- 危险主操作（删除确认等）：红底主按钮 -->
+<Style x:Key="DangerBtn" TargetType="Button" BasedOn="{StaticResource AddBtn}">
+            <Setter Property="Background" Value="{DynamicResource Danger}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="9" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF7A7E" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#D94A4F" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Background" Value="#E8A6A8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 <Style x:Key="ChipBtn" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource HoverBg}" />
             <Setter Property="Foreground" Value="{DynamicResource Accent}" />

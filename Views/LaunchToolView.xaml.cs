@@ -10,7 +10,6 @@ using TodoApp.Services;
 namespace TodoApp.Views;
 using UserControl = System.Windows.Controls.UserControl;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
-using MessageBox = System.Windows.MessageBox;
 using DragEventArgs = System.Windows.DragEventArgs;
 using DataFormats = System.Windows.DataFormats;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
@@ -164,9 +163,9 @@ public partial class LaunchToolView : UserControl
         SaveData();
     }
 
-    void AddCatBtn_Click(object sender, RoutedEventArgs e)
+    async void AddCatBtn_Click(object sender, RoutedEventArgs e)
     {
-        var name = AskCategoryName(Loc.Get("LaunchNewCat"), "");
+        var name = await AskCategoryNameAsync(Loc.Get("LaunchNewCat"), "");
         if (name == null) return;
         var cat = new LaunchCategory { Name = name };
         var at = Math.Max(0, _data.Categories.IndexOf(_curCat) + 1);
@@ -180,16 +179,10 @@ public partial class LaunchToolView : UserControl
         SaveData();
     }
 
-    string? AskCategoryName(string title, string initial)
+    async Task<string?> AskCategoryNameAsync(string title, string initial)
     {
-        var owner = Window.GetWindow(this);
-        if (owner == null) return null;
-        while (true)
-        {
-            var dlg = new InputDialog(owner, title, Loc.Get("CatNamePlaceholder"), initial);
-            if (dlg.ShowDialog() != true) return null;
-            if (dlg.InputValue.Length > 0) return dlg.InputValue;
-        }
+        // 空输入时确定按钮本就禁用，返回 null 即取消
+        return await ThemeDialog.PromptAsync(title, Loc.Get("CatNamePlaceholder"), initial);
     }
 
     void Cats_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
@@ -208,10 +201,10 @@ public partial class LaunchToolView : UserControl
         return null;
     }
 
-    void CatRename_Click(object sender, RoutedEventArgs e)
+    async void CatRename_Click(object sender, RoutedEventArgs e)
     {
         if (_ctxCat == null) return;
-        var name = AskCategoryName(Loc.Get("LaunchRenameCat"),
+        var name = await AskCategoryNameAsync(Loc.Get("LaunchRenameCat"),
             string.IsNullOrEmpty(_ctxCat.Cat.Name) ? Loc.Get("CatDefaultName") : _ctxCat.Cat.Name);
         if (name == null) return;
         _ctxCat.Cat.Name = name;
@@ -219,7 +212,7 @@ public partial class LaunchToolView : UserControl
         SaveData();
     }
 
-    void CatDelete_Click(object sender, RoutedEventArgs e)
+    async void CatDelete_Click(object sender, RoutedEventArgs e)
     {
         var vm = _ctxCat;
         if (vm == null) return;
@@ -230,10 +223,10 @@ public partial class LaunchToolView : UserControl
         }
         if (vm.Cat.Items.Count > 0)
         {
-            var r = MessageBox.Show(Window.GetWindow(this),
-                Loc.F("ConfirmDeleteCatFmt", vm.Name, vm.Cat.Items.Count), Loc.Get("AppTitle"),
-                MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (r != MessageBoxResult.Yes) return;
+            if (!await ThemeDialog.ConfirmAsync(
+                    Loc.F("ConfirmDeleteCatFmt", vm.Name, vm.Cat.Items.Count),
+                    Loc.Get("Delete"), danger: true))
+                return;
         }
         var idx = _data.Categories.IndexOf(vm.Cat);
         _data.Categories.RemoveAt(idx);
@@ -369,14 +362,13 @@ public partial class LaunchToolView : UserControl
         OpenEditPanel();
     }
 
-    void DeleteBtn_Click(object sender, RoutedEventArgs e)
+    async void DeleteBtn_Click(object sender, RoutedEventArgs e)
     {
         var sel = _ctxTile ?? Selected;
         if (sel == null) return;
-        var r = MessageBox.Show(Window.GetWindow(this),
-            Loc.F("ConfirmDelete", sel.Item.Name), Loc.Get("AppTitle"),
-            MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (r != MessageBoxResult.Yes) return;
+        if (!await ThemeDialog.ConfirmAsync(Loc.F("ConfirmDelete", sel.Item.Name),
+                Loc.Get("Delete"), danger: true))
+            return;
         _curCat.Items.Remove(sel.Item);
         SaveData();
         RenderTiles();

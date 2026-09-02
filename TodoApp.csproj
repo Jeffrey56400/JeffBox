@@ -10,7 +10,7 @@
     <RootNamespace>TodoApp</RootNamespace>
     <AssemblyName>JeffBox</AssemblyName>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <Product>JeffBox</Product>
   </PropertyGroup>
 
