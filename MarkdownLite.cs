@@ -109,10 +109,10 @@ public static void Render(StackPanel host, string md, Func<string, string?> imag
                 continue;
             }
 
-            if (t.StartsWith("#### ")) { yield return MakeText(t[5..], 13, FontWeights.SemiBold, "TextMain"); continue; }
-            if (t.StartsWith("### ")) { yield return MakeText(t[4..], 13.5, FontWeights.SemiBold, "TextMain"); continue; }
-            if (t.StartsWith("## ")) { yield return MakeText(t[3..], 14.5, FontWeights.SemiBold, "TextMain"); continue; }
-            if (t.StartsWith("# ")) { yield return MakeText(t[2..], 16.5, FontWeights.SemiBold, "TextMain"); continue; }
+            if (t.StartsWith("#### ")) { yield return MakeHeading(t[5..], 13, 4); continue; }
+            if (t.StartsWith("### ")) { yield return MakeHeading(t[4..], 13.5, 3); continue; }
+            if (t.StartsWith("## ")) { yield return MakeHeading(t[3..], 14.5, 2); continue; }
+            if (t.StartsWith("# ")) { yield return MakeHeading(t[2..], 16.5, 1); continue; }
 
             if (t.StartsWith("> ")) { yield return MakeQuote(t[2..]); continue; }
             if (t == ">") { yield return MakeQuote(""); continue; }
@@ -310,6 +310,14 @@ public static void Render(StackPanel host, string md, Func<string, string?> imag
         sp.Children.Add(box);
         sp.Children.Add(label);
         return sp;
+    }
+
+    /// <summary>标题块：Tag 记层级（int），笔记工具的大纲侧栏靠它识别与跳转</summary>
+    static TextBlock MakeHeading(string text, double size, int level)
+    {
+        var tb = MakeText(text, size, FontWeights.SemiBold, "TextMain");
+        tb.Tag = level;
+        return tb;
     }
 
     static TextBlock MakeText(string text, double size, FontWeight weight, string brushKey)

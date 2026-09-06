@@ -59,7 +59,13 @@ public partial class HotkeyBox : UserControl
     public string LabelKey
     {
         get => _labelKey;
-        set { _labelKey = value; LabelText.Text = Loc.Get(value); }
+        set
+        {
+            _labelKey = value;
+            LabelText.Text = Loc.Get(value);
+            // 主热键标签缩短后，完整含义放悬浮提示
+            LabelText.ToolTip = value == "HotkeyMainLabel" ? Loc.Get("HotkeyPillTip") : null;
+        }
     }
 
     /// <summary>宿主回填：当前组合与注册结果</summary>

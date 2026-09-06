@@ -313,7 +313,9 @@ public partial class MdToolView : UserControl
         Editor.Visibility = Visibility.Collapsed;
         PreviewHost.Visibility = Visibility.Visible;
         ModeBtn.Content = Loc.Get("Edit");
+        CloseFindBar();
         StartPreviewRender();
+        BuildOutline();
     }
 
     void EnterEditMode()
@@ -323,10 +325,160 @@ public partial class MdToolView : UserControl
         PreviewHost.Visibility = Visibility.Collapsed;
         Editor.Visibility = Visibility.Visible;
         ModeBtn.Content = Loc.Get("Preview");
+        OutlinePanel.Visibility = Visibility.Collapsed;
         Editor.Focus();
     }
 
-    void RenderPreview() => StartPreviewRender();
+    void RenderPreview()
+    {
+        StartPreviewRender();
+        BuildOutline();
+    }
+
+    // ---------- 大纲侧栏（预览模式） ----------
+
+    readonly List<(int Level, string Text)> _outline = new();
+
+    /// <summary>从源文本扫标题（跳过代码围栏），与渲染流无关——点跳转时再按序找已渲染元素</summary>
+    void BuildOutline()
+    {
+        _outline.Clear();
+        bool inFence = false;
+        foreach (var raw in Editor.Text.Split('\n'))
+        {
+            var line = raw.TrimEnd();
+            if (line.StartsWith("```"))
+            {
+                inFence = !inFence;
+                continue;
+            }
+            if (inFence) continue;
+            int level = line.StartsWith("#### ") ? 4
+                : line.StartsWith("### ") ? 3
+                : line.StartsWith("## ") ? 2
+                : line.StartsWith("# ") ? 1 : 0;
+            if (level > 0)
+                _outline.Add((level, line[(level + 1)..].Trim()));
+        }
+
+        OutlineList.Children.Clear();
+        OutlinePanel.Visibility = _outline.Count >= 3 ? Visibility.Visible : Visibility.Collapsed;
+        for (int i = 0; i < _outline.Count; i++)
+        {
+            var idx = i;
+            var (level, text) = _outline[i];
+            var btn = new Button
+            {
+                Content = text.Length == 0 ? " " : text,
+                FontSize = level <= 1 ? 12 : 11,
+                FontWeight = level <= 1 ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = level <= 1
+                    ? Theme.Brush("TextBody")
+                    : Theme.Brush("TextSub"),
+                Margin = new Thickness(6 + (level - 1) * 10, 1, 6, 1),
+                Padding = new Thickness(6, 4, 6, 4),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left,
+                Cursor = System.Windows.Input.Cursors.Hand,
+            };
+            btn.Template = (ControlTemplate)FindResource("OutlineBtnTemplate");
+            btn.Click += (_, _) => ScrollToHeading(idx);
+            OutlineList.Children.Add(btn);
+        }
+    }
+
+    /// <summary>跳到大纲第 idx 个标题：块是惰性渲染的，必要时续载直到目标出现</summary>
+    void ScrollToHeading(int idx)
+    {
+        int guard = 0;
+        while (guard++ < 100)
+        {
+            var found = -1;
+            foreach (var child in PreviewPanel.Children)
+                if (child is TextBlock tb && tb.Tag is int)
+                {
+                    found++;
+                    if (found == idx)
+                    {
+                        tb.BringIntoView();
+                        return;
+                    }
+                }
+            if (_blockEnumerator == null) return; // 全部加载完仍没找到：源与渲染不一致，放弃
+            AppendBlocks(300);
+        }
+    }
+
+    // ---------- Ctrl+F 文内搜索（编辑模式） ----------
+
+    void FindBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            CloseFindBar();
+        }
+        else if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            FindNext(backward: (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift);
+        }
+    }
+
+    void FindBox_TextChanged(object sender, TextChangedEventArgs e) => FindNext(backward: false);
+
+    void FindNextBtn_Click(object sender, RoutedEventArgs e) => FindNext(backward: false);
+
+    void FindPrevBtn_Click(object sender, RoutedEventArgs e) => FindNext(backward: true);
+
+    void FindCloseBtn_Click(object sender, RoutedEventArgs e) => CloseFindBar();
+
+    void CloseFindBar()
+    {
+        if (FindBar.Visibility == Visibility.Collapsed) return;
+        FindBar.Visibility = Visibility.Collapsed;
+        Editor.Focus();
+    }
+
+    void FindNext(bool backward)
+    {
+        var term = FindBox.Text;
+        if (term.Length == 0) { FindCount.Text = ""; return; }
+        var text = Editor.Text;
+        int idx;
+        if (backward)
+        {
+            var from = Editor.SelectionStart;
+            idx = from > 0 ? text.LastIndexOf(term, from, StringComparison.OrdinalIgnoreCase) : -1;
+            if (idx < 0) idx = text.LastIndexOf(term, StringComparison.OrdinalIgnoreCase); // 环绕
+        }
+        else
+        {
+            var from = Editor.SelectionStart + Editor.SelectionLength;
+            idx = text.IndexOf(term, from, StringComparison.OrdinalIgnoreCase);
+            if (idx < 0) idx = text.IndexOf(term, StringComparison.OrdinalIgnoreCase);
+        }
+        if (idx < 0)
+        {
+            FindCount.Text = Loc.Get("FindNoMatch");
+            return;
+        }
+        Editor.Select(idx, term.Length);
+        Editor.ScrollToLine(Editor.GetLineIndexFromCharacterIndex(idx));
+
+        // 第几个 / 共几个
+        int nth = 1, pos = 0;
+        int total = 0;
+        while (true)
+        {
+            var at = text.IndexOf(term, pos, StringComparison.OrdinalIgnoreCase);
+            if (at < 0) break;
+            total++;
+            if (at <= idx) nth = total;
+            pos = at + term.Length;
+        }
+        FindCount.Text = nth + "/" + total;
+    }
 
     // ---------- 分块渲染流水线 ----------
 
@@ -402,6 +554,13 @@ public partial class MdToolView : UserControl
         if (Keyboard.Modifiers != ModifierKeys.Control) return;
         if (e.Key == Key.O) { e.Handled = true; OpenBtn_Click(sender, e); }
         else if (e.Key == Key.N) { e.Handled = true; NewBtn_Click(sender, e); }
+        else if (e.Key == Key.F && !_previewMode)
+        {
+            e.Handled = true;
+            FindBar.Visibility = Visibility.Visible;
+            FindBox.Focus();
+            FindBox.SelectAll();
+        }
     }
 
     // ---------- 拖拽打开 ----------

@@ -11,6 +11,9 @@ public class LaunchItem
     public string Path { get; set; } = "";
     /// <summary>累计启动次数（用于"最常用"排序）</summary>
     public int LaunchCount { get; set; }
+
+    /// <summary>自定义图标来源（.ico/.png/.jpg/.exe/.dll），空串 = 用目标本身的图标</summary>
+    public string IconPath { get; set; } = "";
 }
 
 public class LaunchCategory

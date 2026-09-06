@@ -53,6 +53,16 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <ControlTemplate x:Key="OutlineBtnTemplate" TargetType="Button">
+            <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                <ContentPresenter VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBg}" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
         <Style x:Key="MdEditor" TargetType="TextBox">
             <Setter Property="Background" Value="{DynamicResource Card}" />
             <Setter Property="Foreground" Value="{DynamicResource TextBody}" />
@@ -90,21 +100,67 @@
                     Click="ModeBtn_Click" />
         </DockPanel>
 
-        <!-- 文件路径 / 状态 -->
-        <TextBlock x:Name="PathLabel" Grid.Row="1" FontSize="11"
-                   Foreground="{DynamicResource TextFaint}"
-                   Margin="2,8,2,6" TextTrimming="CharacterEllipsis" />
+        <!-- 文件路径 / 状态 + Ctrl+F 搜索条（编辑模式） -->
+        <Grid Grid.Row="1" Margin="2,8,2,6">
+            <TextBlock x:Name="PathLabel" FontSize="11"
+                       Foreground="{DynamicResource TextFaint}" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" />
+            <Border x:Name="FindBar" Visibility="Collapsed" HorizontalAlignment="Right"
+                    Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}"
+                    BorderThickness="1.2" CornerRadius="8" Padding="6,3">
+                <StackPanel Orientation="Horizontal">
+                    <TextBox x:Name="FindBox" Width="130" FontSize="12"
+                             Background="Transparent" BorderThickness="0"
+                             Foreground="{DynamicResource TextBody}" CaretBrush="{DynamicResource Accent}"
+                             VerticalContentAlignment="Center"
+                             KeyDown="FindBox_KeyDown" TextChanged="FindBox_TextChanged" />
+                    <TextBlock x:Name="FindCount" FontSize="10.5" Foreground="{DynamicResource TextFaint}"
+                               VerticalAlignment="Center" Margin="4,0,4,0" />
+                    <Button Style="{StaticResource MdToolBarBtn}" Content="&#xE74A;" FontFamily="{StaticResource IconFont}"
+                            FontSize="10" Padding="6,4" Margin="0,0,2,0" Click="FindPrevBtn_Click"
+                            ToolTip="{Binding [FindPrev], Source={x:Static svc:Loc.Instance}}" />
+                    <Button Style="{StaticResource MdToolBarBtn}" Content="&#xE74B;" FontFamily="{StaticResource IconFont}"
+                            FontSize="10" Padding="6,4" Margin="0,0,2,0" Click="FindNextBtn_Click"
+                            ToolTip="{Binding [FindNext], Source={x:Static svc:Loc.Instance}}" />
+                    <Button Style="{StaticResource MdToolBarBtn}" Content="&#xE711;" FontFamily="{StaticResource IconFont}"
+                            FontSize="10" Padding="6,4" Margin="0" Click="FindCloseBtn_Click"
+                            ToolTip="{Binding [Cancel], Source={x:Static svc:Loc.Instance}}" />
+                </StackPanel>
+            </Border>
+        </Grid>
 
-        <!-- 内容区：编辑 ⇄ 预览 同一位置切换 -->
+        <!-- 内容区：大纲侧栏（预览模式） + 编辑 ⇄ 预览 同一位置切换 -->
         <Grid Grid.Row="2">
-            <TextBox x:Name="Editor" Style="{StaticResource MdEditor}"
-                     TextChanged="Editor_TextChanged"
-                     PreviewKeyDown="Editor_PreviewKeyDown" />
-            <ScrollViewer x:Name="PreviewHost" ScrollChanged="PreviewHost_ScrollChanged" Visibility="Collapsed"
-                          Background="{DynamicResource Surface2}"
-                          VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="PreviewPanel" Margin="14,10" />
-            </ScrollViewer>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border x:Name="OutlinePanel" Grid.Column="0" Visibility="Collapsed" Width="170"
+                    Background="{DynamicResource Pill}" CornerRadius="10" Margin="0,0,10,0"
+                    VerticalAlignment="Stretch">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="OutlineTitleTb" Grid.Row="0" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSub}" Margin="12,10,0,8"
+                               Text="{Binding [MdOutlineTitle], Source={x:Static svc:Loc.Instance}}" />
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,4,6">
+                        <StackPanel x:Name="OutlineList" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+            <Grid Grid.Column="1">
+                <TextBox x:Name="Editor" Style="{StaticResource MdEditor}"
+                         TextChanged="Editor_TextChanged"
+                         PreviewKeyDown="Editor_PreviewKeyDown" />
+                <ScrollViewer x:Name="PreviewHost" ScrollChanged="PreviewHost_ScrollChanged" Visibility="Collapsed"
+                              Background="{DynamicResource Surface2}"
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="PreviewPanel" Margin="14,10" />
+                </ScrollViewer>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

@@ -163,6 +163,29 @@
                             Margin="8,0,0,0" Content="📁" Click="BrowseFolderBtn_Click"
                             ToolTip="{Binding [LaunchPickApp], Source={x:Static svc:Loc.Instance}}" />
                 </Grid>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Style="{StaticResource LaunchFieldLabel}"
+                               Text="{Binding [LaunchIconLabel], Source={x:Static svc:Loc.Instance}}" />
+                    <Border Grid.Column="1" Width="36" Height="36" CornerRadius="8" Margin="2,0,0,0"
+                            Background="{DynamicResource Surface2}" VerticalAlignment="Center">
+                        <Grid>
+                            <Image x:Name="IconPreview" Width="28" Height="28" Visibility="Collapsed"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <TextBlock x:Name="IconPlaceholder" Text="&#xE7B8;" FontFamily="{StaticResource IconFont}"
+                                       FontSize="14" Foreground="{DynamicResource TextFaint}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <Button x:Name="IconPickBtn" Grid.Column="3" Style="{StaticResource LaunchChip}"
+                            Content="{Binding [LaunchIconPick], Source={x:Static svc:Loc.Instance}}"
+                            Click="IconPickBtn_Click" />
+                </Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Style="{StaticResource GhostBtn}" Content="{Binding [Cancel], Source={x:Static svc:Loc.Instance}}"
                             Click="EditCancelBtn_Click" VerticalAlignment="Center" />

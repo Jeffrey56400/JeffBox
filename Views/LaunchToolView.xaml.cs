@@ -124,7 +124,9 @@ public partial class LaunchToolView : UserControl
             _tiles.Add(new TileVm
             {
                 Item = it,
-                Icon = IconExtract.GetCached(it.Path, isDir),
+                Icon = !string.IsNullOrEmpty(it.IconPath)
+                    ? IconExtract.GetCustomCached(it.IconPath) ?? IconExtract.GetCached(it.Path, isDir)
+                    : IconExtract.GetCached(it.Path, isDir),
             });
         }
         EmptyState.Visibility = _tiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -343,6 +345,8 @@ public partial class LaunchToolView : UserControl
         _editItem = null;
         NameBox.Text = "";
         PathBox.Text = "";
+        _editIconPath = "";
+        RefreshEditIcon();
         OpenEditPanel();
     }
 
@@ -358,6 +362,8 @@ public partial class LaunchToolView : UserControl
         _editItem = vm.Item;
         NameBox.Text = vm.Item.Name;
         PathBox.Text = vm.Item.Path;
+        _editIconPath = vm.Item.IconPath;
+        RefreshEditIcon();
         Tiles.SelectedItem = vm;
         OpenEditPanel();
     }
@@ -394,10 +400,11 @@ public partial class LaunchToolView : UserControl
         {
             _editItem.Name = name;
             _editItem.Path = path;
+            _editItem.IconPath = _editIconPath;
         }
         else
         {
-            var item = new LaunchItem { Name = name, Path = path };
+            var item = new LaunchItem { Name = name, Path = path, IconPath = _editIconPath };
             _curCat.Items.Add(item);
         }
         SaveData();
@@ -406,6 +413,36 @@ public partial class LaunchToolView : UserControl
     }
 
     void EditCancelBtn_Click(object sender, RoutedEventArgs e) => CloseEditPanel();
+
+    string _editIconPath = "";
+
+    void RefreshEditIcon()
+    {
+        IconPreview.Source = _editIconPath.Length > 0
+            ? IconExtract.GetCustomCached(_editIconPath)
+            : null;
+        IconPreview.Visibility = _editIconPath.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        IconPlaceholder.Visibility = _editIconPath.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    void IconPickBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var ofd = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = Loc.Get("FilterIcon"),
+            Title = Loc.Get("LaunchIconPick"),
+        };
+        if (ofd.ShowDialog(Window.GetWindow(this)) != true) return;
+        if (!File.Exists(ofd.FileName)) return;
+        _editIconPath = ofd.FileName;
+        RefreshEditIcon();
+    }
+
+    void IconClearBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _editIconPath = "";
+        RefreshEditIcon();
+    }
 
     void BrowseAppBtn_Click(object sender, RoutedEventArgs e)
     {

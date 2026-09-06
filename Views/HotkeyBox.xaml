@@ -7,8 +7,8 @@
         <StackPanel Orientation="Horizontal">
             <TextBlock x:Name="LabelText" FontSize="11.5" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextSub}" VerticalAlignment="Center"
-                       Margin="1,0,10,0" MinWidth="90" MaxWidth="108"
-                       TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+                       Margin="1,0,10,0" MinWidth="64" MaxWidth="108"
+                       TextTrimming="CharacterEllipsis" ToolTipService.InitialShowDelay="200" />
             <Border x:Name="Box" CornerRadius="9" Background="{DynamicResource Surface2}"
                     BorderBrush="{DynamicResource Line}" BorderThickness="1.4"
                     Padding="12,7" MinWidth="118" MaxWidth="170"

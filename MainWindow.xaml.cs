@@ -52,7 +52,7 @@ public partial class MainWindow : Window
     const int WM_HOTKEY = 0x0312;
     const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string RunValueName = "JeffBox";
-    const string AppVersion = "1.0.5";
+    const string AppVersion = "1.0.6";
 
     readonly ObservableCollection<TodoViewModel> _all = new();   // 仅根任务
     readonly ObservableCollection<TodoViewModel> _view = new();
@@ -190,6 +190,7 @@ public partial class MainWindow : Window
         _hwnd = new WindowInteropHelper(this).Handle;
         _hookSource = HwndSource.FromHwnd(_hwnd);
         _hookSource?.AddHook(WndProc);
+        DueDatePicker.DatePicked += DueDatePicker_DatePicked;
         RestoreWindowBounds();
         // 打开位置：鼠标屏居中 / 鼠标附近（设置项）。静默启动不定屏，等用户真正呼出再说
         if (!App.StartMinimized) ApplyOpenPosition();
@@ -200,6 +201,7 @@ public partial class MainWindow : Window
         InitHotkeyBoxes();
         ApplyAllHotkeys();
         UpdateCloseTooltip();
+
 
         if (App.StartMinimized)
         {
@@ -229,7 +231,9 @@ public partial class MainWindow : Window
                 if (await MdView.ConfirmDiscardAsync())
                 {
                     _mdCloseConfirmed = true;
-                    Close();
+                    // 此刻窗口仍处于关闭流程中，直接 Close() 会抛
+                    // "窗口关闭期间无法调用 Close"，排到关闭结束后再关
+                    Dispatcher.BeginInvoke(() => Close());
                 }
             }
             return;
@@ -399,7 +403,7 @@ public partial class MainWindow : Window
     void NewNoDueBtn_Click(object sender, RoutedEventArgs e)
     {
         NewDatePicker.SelectedDate = null;
-        NewDatePicker.Focus();
+        NewDatePicker.FocusField();
     }
 
     void NewInsertImageBtn_Click(object sender, RoutedEventArgs e)
@@ -806,7 +810,7 @@ public partial class MainWindow : Window
         _detailVm = null;
     }
 
-    void DueDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e) => CommitDue();
+    void DueDatePicker_DatePicked() => CommitDue();
 
     void TimeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) => CommitDue();
 
@@ -945,7 +949,7 @@ public partial class MainWindow : Window
     void ClearDueBtn_Click(object sender, RoutedEventArgs e)
     {
         DueDatePicker.SelectedDate = null;
-        DueDatePicker.Focus();
+        DueDatePicker.FocusField();
     }
 
     void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -981,6 +985,258 @@ public partial class MainWindow : Window
         if (b.Parent is Popup pp) pp.IsOpen = false;
         OpenDetail(vm);
         e.Handled = true;
+    }
+
+    // ---------- 日历视图 ----------
+
+    DateTime _calMonth = new(DateTime.Now.Year, DateTime.Now.Month, 1);
+    DateTime? _calSelected;
+    bool _calMode;
+
+    void CalendarViewBtn_Click(object sender, RoutedEventArgs e) => ToggleCalendar();
+
+    void ToggleCalendar()
+    {
+        _calMode = !_calMode;
+        CalendarPanel.Visibility = _calMode ? Visibility.Visible : Visibility.Collapsed;
+        var sv = ListItems.Parent as ScrollViewer;
+        if (sv != null) sv.Visibility = _calMode ? Visibility.Collapsed : Visibility.Visible;
+        EmptyState.Visibility = _calMode ? Visibility.Collapsed : EmptyState.Visibility;
+        CalendarViewBtn.Content = _calMode ? Loc.Get("FilterAll") : Loc.Get("CalView");
+        if (_calMode)
+        {
+            if (_calSelected == null) _calSelected = DateTime.Today;
+            BuildCalendar();
+        }
+        else
+        {
+            ApplyFilter(); // 恢复列表态（含 EmptyState 判定）
+        }
+    }
+
+    void CalPrevBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _calMonth = _calMonth.AddMonths(-1);
+        BuildCalendar();
+    }
+
+    void CalNextBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _calMonth = _calMonth.AddMonths(1);
+        BuildCalendar();
+    }
+
+    void CalTodayBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _calMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+        _calSelected = DateTime.Today;
+        BuildCalendar();
+    }
+
+    /// <summary>某天的到期任务（树内任意层级）</summary>
+    List<TodoViewModel> TasksOn(DateTime day) =>
+        _all.SelectMany(v => v.Flatten())
+            .Where(v => v.DueAt is DateTime d && d.Date == day)
+            .OrderBy(v => v.DueAt)
+            .ToList();
+
+    void BuildCalendar()
+    {
+        // 标题
+        CalTitle.Text = Loc.Lang == "en"
+            ? _calMonth.ToString("yyyy MMMM", System.Globalization.CultureInfo.InvariantCulture)
+            : _calMonth.Year + "年" + _calMonth.Month + "月";
+
+        // 星期表头（周日开头，与日期选择弹层一致）
+        if (CalWeekHeader.Children.Count == 0)
+        {
+            var names = Loc.Lang == "en"
+                ? new[] { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" }
+                : new[] { "日", "一", "二", "三", "四", "五", "六" };
+            foreach (var n in names)
+                CalWeekHeader.Children.Add(new TextBlock
+                {
+                    Text = n,
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Theme.Brush("TextSub"),
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                });
+        }
+
+        CalDays.Children.Clear();
+        var first = _calMonth;
+        int lead = (int)first.DayOfWeek; // 周日=0
+        int days = DateTime.DaysInMonth(first.Year, first.Month);
+        var today = DateTime.Today;
+        for (int i = 0; i < lead; i++)
+            CalDays.Children.Add(new Border());
+        for (int d = 1; d <= days; d++)
+        {
+            var date = new DateTime(first.Year, first.Month, d);
+            var tasks = TasksOn(date);
+            CalDays.Children.Add(BuildDayCell(date, tasks, today));
+        }
+        UpdateCalDetail();
+    }
+
+    Border BuildDayCell(DateTime date, List<TodoViewModel> tasks, DateTime today)
+    {
+        bool isToday = date == today;
+        bool selected = _calSelected == date;
+        bool overdue = date < today && tasks.Any(t => !t.IsDone);
+
+        var cell = new Border
+        {
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(5, 3, 5, 4),
+            Margin = new Thickness(1.5),
+            ClipToBounds = true,
+
+            Background = tasks.Count > 0 ? Theme.Brush("Card") : Theme.Brush("Pill"),
+            BorderBrush = selected ? Theme.Brush("Accent") : null,
+            BorderThickness = new Thickness(selected ? 1.6 : 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Tag = date,
+            Effect = tasks.Count > 0
+                ? new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 10, ShadowDepth = 1, Direction = 270, Opacity = 0.07, Color = ColorFromHex("#3A4160"),
+                }
+                : null,
+        };
+        var grid = new Grid();
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition());
+        var num = new TextBlock
+        {
+            Text = date.Day.ToString(),
+            FontSize = 12,
+            FontWeight = isToday ? FontWeights.SemiBold : FontWeights.Normal,
+            Foreground = isToday
+                ? Theme.Brush("Accent")
+                : overdue ? Theme.Brush("Danger") : Theme.Brush("TextSub"),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+            Margin = new Thickness(0, 0, 2, 2),
+        };
+        Grid.SetRow(num, 0);
+        grid.Children.Add(num);
+
+        var list = new StackPanel();
+        int shown = 0;
+        foreach (var t in tasks)
+        {
+            if (shown >= 2)
+            {
+                list.Children.Add(new TextBlock
+                {
+                    Text = "+" + (tasks.Count - 2),
+                    FontSize = 10,
+                    Foreground = Theme.Brush("TextFaint"),
+                    Margin = new Thickness(2, 1, 0, 0),
+                });
+                break;
+            }
+            list.Children.Add(new TextBlock
+            {
+                Text = (t.IsDone ? "✓ " : "• ") + t.Text,
+                FontSize = 10,
+                Foreground = t.IsDone ? Theme.Brush("TextFaint") : Theme.Brush("TextBody"),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Opacity = t.IsDone ? 0.65 : 1,
+                Margin = new Thickness(2, 0, 0, 0),
+            });
+            shown++;
+        }
+        Grid.SetRow(list, 1);
+        grid.Children.Add(list);
+        cell.Child = grid;
+
+        cell.MouseLeftButtonUp += (_, _) =>
+        {
+            _calSelected = date;
+            BuildCalendar();
+        };
+        return cell;
+    }
+
+    static System.Windows.Media.Color ColorFromHex(string hex) =>
+        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+
+    void UpdateCalDetail()
+    {
+        if (_calSelected is not DateTime day)
+        {
+            CalDetailCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var tasks = TasksOn(day);
+        CalDetailCard.Visibility = Visibility.Visible;
+        CalTaskList.Children.Clear();
+        var title = new TextBlock
+        {
+            Text = day.ToString(Loc.Lang == "en" ? "ddd, MMM d" : "M月d日 dddd",
+                    Loc.Lang == "en"
+                        ? System.Globalization.CultureInfo.InvariantCulture
+                        : new System.Globalization.CultureInfo("zh-CN"))
+                + " · " + tasks.Count,
+            FontSize = 11.5,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Theme.Brush("TextSub"),
+            Margin = new Thickness(2, 0, 0, 6),
+        };
+        CalTaskList.Children.Add(title);
+        if (tasks.Count == 0)
+        {
+            CalTaskList.Children.Add(new TextBlock
+            {
+                Text = Loc.Get("CalNoDue"),
+                FontSize = 12,
+                Foreground = Theme.Brush("TextFaint"),
+                Margin = new Thickness(2, 2, 0, 4),
+            });
+            return;
+        }
+        foreach (var vm in tasks)
+        {
+            var row = new Border
+            {
+                Background = Theme.Brush("Surface2"),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(9, 6, 9, 6),
+                Margin = new Thickness(0, 0, 0, 5),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Opacity = vm.IsDone ? 0.62 : 1,
+                Child = new StackPanel
+                {
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = vm.Text,
+                            FontSize = 12.5,
+                            FontWeight = FontWeights.Medium,
+                            Foreground = Theme.Brush("TextBody"),
+                            TextTrimming = TextTrimming.CharacterEllipsis,
+                        },
+                        new TextBlock
+                        {
+                            Text = (vm.DueAt is DateTime du ? du.ToString("HH:mm") + " · " : "")
+                                   + Loc.F("MetaPriorityFmt", Loc.PriorityName(vm.Priority)),
+                            FontSize = 10.5,
+                            Foreground = Theme.Brush("TextFaint"),
+                            Margin = new Thickness(0, 2, 0, 0),
+                        },
+                    },
+                },
+            };
+            row.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                OpenDetail(vm);
+            };
+            CalTaskList.Children.Add(row);
+        }
     }
 
     // ---------- 一键展开 / 收起 ----------
@@ -1081,7 +1337,11 @@ public partial class MainWindow : Window
         UpdateToggleAllBtn();
     }
 
-    void Save() => TodoStorage.Save(_all.Select(v => v.Item));
+    void Save()
+    {
+        TodoStorage.Save(_all.Select(v => v.Item));
+        if (_calMode) BuildCalendar(); // 增删/完成/改期即时反映到日历
+    }
 
     static Brush BrushOf(string hex)
     {
@@ -1581,6 +1841,9 @@ public partial class MainWindow : Window
         EmptyHintTb.Text = Loc.Get("EmptyHint");
         EmptyHint2Tb.Text = Loc.Get("EmptyHint2");
         ClearDoneBtn.Content = Loc.Get("ClearDone");
+        CalendarViewBtn.Content = _calMode ? Loc.Get("FilterAll") : Loc.Get("CalView");
+        CalTodayBtn.Content = Loc.Get("CalToday");
+        if (_calMode) { CalWeekHeader.Children.Clear(); BuildCalendar(); }
         MinBtn.ToolTip = Loc.Get("Minimize");
         BannerTitleTb.Text = Loc.Get("ReminderBannerTitle");
         BannerViewBtn.Content = Loc.Get("View");
@@ -1626,25 +1889,21 @@ public partial class MainWindow : Window
         HkTodo.RefreshLocale();
         HkMd.RefreshLocale();
         HkLaunch.RefreshLocale();
+        BackupLabelTb.Text = Loc.Get("BackupLabel");
+        BackupExportBtn.Content = Loc.Get("BackupExport");
+        BackupImportBtn.Content = Loc.Get("BackupImport");
+        BackupHintTb.Text = Loc.Get("BackupHint");
         MdAssocLabelTb.Text = Loc.Get("MdAssocLabel");
         MdAssocToggleTb.Text = Loc.Get("MdAssocToggle");
         SettingsAboutTb.Text = Loc.F("AboutFmt", AppVersion);
 
-        // 日期行 + 日期控件语言
+        // 日期行（日期控件语言由 DateField 自行处理）
         if (Loc.Lang == "en")
-        {
             DateText.Text = DateTime.Now.ToString("dddd, MMM d", System.Globalization.CultureInfo.InvariantCulture);
-            var enUs = System.Windows.Markup.XmlLanguage.GetLanguage("en-US");
-            DueDatePicker.Language = enUs;
-            NewDatePicker.Language = enUs;
-        }
         else
-        {
             DateText.Text = $"{DateTime.Now.Month}月{DateTime.Now.Day}日 · {DateTime.Now.ToString("dddd", new System.Globalization.CultureInfo("zh-CN"))}";
-            var zhCn = System.Windows.Markup.XmlLanguage.GetLanguage("zh-CN");
-            DueDatePicker.Language = zhCn;
-            NewDatePicker.Language = zhCn;
-        }
+        DueDatePicker.RefreshLocale();
+        NewDatePicker.RefreshLocale();
 
         // 托盘菜单文本（重建）
         if (_tray != null)
@@ -1768,6 +2027,61 @@ public partial class MainWindow : Window
         _settings.AutoStart = on;
         _settings.Save();
         SetAutoStart(on);
+    }
+
+    // ---------- 数据备份 ----------
+
+    void BackupExportBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "ZIP|*.zip",
+            FileName = $"JeffBox-backup-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+            Title = Loc.Get("BackupExport"),
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            Services.DataBackup.Export(dlg.FileName);
+            _tray?.ShowBalloonTip(2500, Loc.Get("BackupLabel"),
+                Loc.F("BackupDoneFmt", dlg.FileName), System.Windows.Forms.ToolTipIcon.Info);
+        }
+        catch
+        {
+            ShowTrayWarning(Loc.Get("ImportFailed") + " · " + dlg.FileName);
+        }
+    }
+
+    async void BackupImportBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Filter = "ZIP|*.zip", Title = Loc.Get("BackupImport") };
+        if (dlg.ShowDialog(this) != true) return;
+        if (!Services.DataBackup.LooksLikeBackup(dlg.FileName))
+        {
+            ShowTrayWarning(Loc.Get("BackupInvalid"));
+            return;
+        }
+        if (!await Views.ThemeDialog.ConfirmAsync(Loc.Get("BackupImportConfirm"),
+                Loc.Get("BackupImport"), danger: true))
+            return;
+        try
+        {
+            // 覆盖前把当前数据先存一份临时安全副本，误导入还能救
+            var safeCopy = Services.DataBackup.ExportToTemp();
+            Services.DataBackup.Restore(dlg.FileName);
+            _forceExit = true;
+            _mdCloseConfirmed = true; // 导入是全量覆盖，不再问未保存
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = Environment.ProcessPath ?? "",
+                UseShellExecute = true,
+            });
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch
+        {
+            ShowTrayWarning(Loc.Get("ImportFailed") + " · " + dlg.FileName);
+        }
     }
 
     // ---------- MD 文件关联 ----------
@@ -1918,6 +2232,7 @@ public partial class MainWindow : Window
         SwitchTool(ToolTab.Md);
         await MdView.OpenExternalAsync(md);
     }
+
 
     // ---------- 窗口状态持久化 ----------
 

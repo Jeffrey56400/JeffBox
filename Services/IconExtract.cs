@@ -70,6 +70,39 @@ public static class IconExtract
         }
     }
 
+    /// <summary>
+    /// 用户指定的自定义图标：.ico 直接解码，png/jpg 用 BitmapFrame，
+    /// exe/dll 走 Shell 提取（取程序自身图标）。失败返回 null（磁贴回退默认图标）。
+    /// </summary>
+    public static BitmapSource? GetCustom(string path)
+    {
+        try
+        {
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            if (ext is ".png" or ".jpg" or ".jpeg")
+            {
+                var frame = BitmapFrame.Create(new Uri(path), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                frame.Freeze();
+                return frame;
+            }
+            // .ico / .exe / .dll / 其他 → Shell 图标（ico 也走这里，能拿到位图句柄）
+            return Get(path, folder: false);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static BitmapSource? GetCustomCached(string path)
+    {
+        var key = "custom:" + path.ToLowerInvariant();
+        if (Cache.TryGetValue(key, out var cached)) return cached;
+        var icon = GetCustom(path);
+        if (icon != null) Cache[key] = icon;
+        return icon;
+    }
+
     /// <summary>图标缓存：同一图标文件路径只提取一次</summary>
     private static readonly Dictionary<string, BitmapSource?> Cache = new();
 
